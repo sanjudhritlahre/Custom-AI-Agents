@@ -1,7 +1,7 @@
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { MessagesAnnotation, StateGraph } from '@langchain/langgraph';
-import { HumanMessage } from 'langchain';
+import { ChatGroq } from "@langchain/groq";
 
 /*
 * 1. Define Node Functions.
@@ -9,11 +9,23 @@ import { HumanMessage } from 'langchain';
 * 3. Compile and Invoke the Graph.
 */
 
-function callModal(state: any) {
+/* 
+ * Initialize the LLM | Instantiation!
+ * Now we can instantiate our model object and generate chat completions:
+*/
+const llm = new ChatGroq({
+    model: "openai/gpt-oss-120b",
+    temperature: 0,
+    maxTokens: undefined,
+    maxRetries: 2,
+});
+
+async function callModal(state: typeof MessagesAnnotation.State) {
     // Call the LLM using APIs
     console.log("Calling LLM...");
+    const response = await llm.invoke(state.messages);
 
-    return state;
+    return {messages: [response]};
 }
 
 /** Build the Graph! **/
@@ -37,7 +49,8 @@ async function main() {
             messages: [{ role: "user", content: userInput }]
         });
 
-        console.log(`Final: ${finalState}`);
+        const lastMessage = finalState.messages[finalState.messages.length - 1];
+        console.log(`Ai: ${lastMessage?.content}`);
     }
 
     rl.close();
