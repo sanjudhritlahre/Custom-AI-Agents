@@ -1,4 +1,4 @@
-# custom-agent
+# Custom Ai Agent - Build Custom AI Agents with LangGraph in Javascript!
 
 To install dependencies:
 
