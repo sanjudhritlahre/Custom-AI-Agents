@@ -1,0 +1,13 @@
+{
+  "name": "custom-agent",
+  "description": "Build Custom AI Agents with LangGraph in Javascript!",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
