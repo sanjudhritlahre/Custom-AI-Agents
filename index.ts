@@ -1,10 +1,12 @@
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import { MessagesAnnotation, StateGraph } from '@langchain/langgraph';
+import { MemorySaver, MessagesAnnotation, StateGraph } from '@langchain/langgraph';
 import { ChatGroq } from "@langchain/groq";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { TavilySearch } from '@langchain/tavily';
 import { AIMessage } from "@langchain/core/messages";
+
+const checkpointer = new MemorySaver();
 
 const tool = new TavilySearch({
     maxResults: 3,
@@ -95,7 +97,7 @@ const workflow = new StateGraph(MessagesAnnotation)
     .addEdge("tools", "agent");
 
 /** Compile the Graph! **/
-const app = workflow.compile();
+const app = workflow.compile({ checkpointer });
 
 async function main() {
     const rl = readline.createInterface({ input, output });
@@ -107,7 +109,7 @@ async function main() {
         /** Invoke the App! **/
         const finalState = await app.invoke({
             messages: [{ role: "user", content: userInput }]
-        });
+        }, { configurable: { thread_id: "1" } });
 
         const lastMessage = finalState.messages[finalState.messages.length - 1];
         console.log(`Ai: ${lastMessage?.content}`);
