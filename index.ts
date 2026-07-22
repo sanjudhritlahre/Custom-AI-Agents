@@ -2,6 +2,28 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { MessagesAnnotation, StateGraph } from '@langchain/langgraph';
 import { ChatGroq } from "@langchain/groq";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+import { TavilySearch } from '@langchain/tavily';
+import { AIMessage } from "@langchain/core/messages";
+
+const tool = new TavilySearch({
+    maxResults: 3,
+    topic: "general",
+    // includeAnswer: false,
+    // includeRawContent: false,
+    // includeImages: false,
+    // includeImageDescriptions: false,
+    // searchDepth: "basic",
+    // timeRange: "day",
+    // includeDomains: [],
+    // excludeDomains: [],
+});
+
+/*
+* Initialize the Tool Node!
+*/
+const tools = [tool];
+const toolNode = new ToolNode(tools);
 
 /*
 * 1. Define Node Functions.
@@ -18,21 +40,59 @@ const llm = new ChatGroq({
     temperature: 0,
     maxTokens: undefined,
     maxRetries: 2,
-});
+}).bindTools(tools);
 
 async function callModal(state: typeof MessagesAnnotation.State) {
     // Call the LLM using APIs
     console.log("Calling LLM...");
     const response = await llm.invoke(state.messages);
 
-    return {messages: [response]};
+    return { messages: [response] };
+}
+
+/**
+ * Put your condition!
+ * Whether to call a tool or end!
+*/
+function shouldContinue(state: typeof MessagesAnnotation.State) {
+    const lastMessage = state.messages.at(-1);
+
+    // TODO: Debug the Code
+    // console.log("State: ", state);
+
+    // No messages → end
+    if (!lastMessage) {
+        return "__end__";
+    }
+
+    // Continue only if the last message is an AI message with tool calls
+    if (
+        lastMessage instanceof AIMessage &&
+        lastMessage.tool_calls &&
+        lastMessage.tool_calls.length > 0
+    ) {
+        return "tools";
+    }
+
+    // Instead of instanceof, you can use the type guard:
+    //  if (
+    //     isAIMessage(lastMessage) &&
+    //     lastMessage.tool_calls?.length
+    // ) {
+    //     return "tools";
+    // }
+
+    return "__end__";
 }
 
 /** Build the Graph! **/
 const workflow = new StateGraph(MessagesAnnotation)
     .addNode("agent", callModal)
+    .addNode("tools", toolNode)
     .addEdge("__start__", "agent")
-    .addEdge("agent", "__end__");
+    .addConditionalEdges("agent", shouldContinue)
+    // After tools execute, call the agent again
+    .addEdge("tools", "agent");
 
 /** Compile the Graph! **/
 const app = workflow.compile();
